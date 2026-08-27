@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WORD MORPH</title>
   <link rel="stylesheet" href="css/style.css">
-  <script src="/socket.io/socket.io.js"></script>
+  <!-- Removed the old local socket script tag from here -->
 </head>
 <body>
 
   <div class="container" id="app-container">
-    
+
     <!-- 1. DASHBOARD SCREEN -->
     <div id="dash-screen" class="screen active">
       <div class="title-logo">WORD MORPH</div>
@@ -138,21 +138,18 @@
       <div class="status-msg" id="status-msg"></div>
     </div>
 
- </div> <!-- END OF CONTAINER -->
+  </div> <!-- END OF CONTAINER -->
 
   <!-- 1. Define backend server URL first -->
   <script>
     window.SOCKET_SERVER_URL = "https://word-morph-backend.onrender.com";
   </script>
 
-  <!-- 2. Load Socket.io library from Render -->
+  <!-- 2. Load Socket.io library directly from your live Render server -->
   <script src="https://word-morph-backend.onrender.com/socket.io/socket.io.js"></script>
 
-  <!-- 3. Load your local game scripts -->
+  <!-- 3. Load your game scripts -->
   <script src="js/dictionary.js"></script>
-  <script src="js/game.js"></script>
-</body>
-</html>
   <script src="js/game.js"></script>
 </body>
 </html>
