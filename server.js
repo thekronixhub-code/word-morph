@@ -90,7 +90,7 @@ io.on('connection', (socket) => {
           delete rooms[roomId];
           console.log(`Room "${roomId}" deleted after grace period`);
         }
-      }, 30000);
+      }, 70000);
       break;
     }
   }
