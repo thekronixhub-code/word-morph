@@ -11,90 +11,96 @@ const rooms = {};
 io.on('connection', (socket) => {
   console.log(`SOCKET CONNECTED: ${socket.id}`);
 
-  socket.on('join_room', ({ roomId, playerName }) => {
-    console.log(`JOIN ATTEMPT: room="${roomId}" name="${playerName}" socket=${socket.id}`);
+  socket.on('join_room', ({ roomId, playerName, playerId }) => {
     socket.join(roomId);
+
     if (!rooms[roomId]) {
       rooms[roomId] = {
         players: [],
         currentWord: "CARE",
         usedWords: ["CARE"],
-        turnIndex: 0  // index into players[] whose turn it is
+        turnIndex: 0,
+        deleteTimeout: null
       };
     }
     const room = rooms[roomId];
-    // Prevent duplicate joins (e.g. on reconnect)
-    const alreadyIn = room.players.find(p => p.id === socket.id);
-    if (!alreadyIn && room.players.length < 2) {
-      room.players.push({ id: socket.id, name: playerName });
-    }
-    console.log(`ROOM STATE: room="${roomId}" now has ${room.players.length} player(s):`, room.players.map(p => `${p.name}(${p.id})`));
 
-    // Tell everyone in the room the current room state
+    // Someone reconnected — cancel any pending room deletion
+    if (room.deleteTimeout) {
+      clearTimeout(room.deleteTimeout);
+      room.deleteTimeout = null;
+    }
+
+    // Match by persistent playerId, NOT socket.id (socket.id changes on every reconnect)
+    let player = room.players.find(p => p.playerId === playerId);
+
+    if (player) {
+      console.log(`RECONNECT: "${playerName}" (${playerId}) new socket=${socket.id}`);
+      player.socketId = socket.id;
+      player.connected = true;
+    } else if (room.players.length < 2) {
+      player = { playerId, socketId: socket.id, name: playerName, connected: true };
+      room.players.push(player);
+      console.log(`NEW JOIN: "${playerName}" (${playerId}) socket=${socket.id}`);
+    }
+
     io.to(roomId).emit('room_update', {
-      players: room.players,
+      players: room.players.map(p => ({ playerId: p.playerId, name: p.name })),
       currentWord: room.currentWord,
       usedWords: room.usedWords
     });
-    // Start the game once both players are in
+
     if (room.players.length === 2) {
-      console.log(`GAME START: room="${roomId}" starter=${room.players[0].name}`);
       io.to(roomId).emit('game_start', {
-        starter: room.players[0].name,          // P1 always goes first
-        starterSocketId: room.players[0].id,
+        starterPlayerId: room.players[0].playerId,
         word: room.currentWord,
-        players: room.players
+        players: room.players.map(p => ({ playerId: p.playerId, name: p.name }))
       });
     }
   });
 
-  // A player submits a valid move
   socket.on('make_move', ({ roomId, word }) => {
-    console.log(`MOVE: room="${roomId}" word="${word}" from socket=${socket.id}`);
     const room = rooms[roomId];
-    if (!room) {
-      console.log(`MOVE REJECTED: no room found for "${roomId}"`);
-      return;
-    }
-    // Validate it's actually this socket's turn
+    if (!room) return;
     const currentPlayer = room.players[room.turnIndex];
-    if (!currentPlayer || currentPlayer.id !== socket.id) {
-      console.log(`MOVE REJECTED: not this socket's turn (expected ${currentPlayer && currentPlayer.id})`);
+    if (!currentPlayer || currentPlayer.socketId !== socket.id) {
+      console.log(`MOVE REJECTED: not this socket's turn`);
       return;
     }
+
     room.currentWord = word;
     room.usedWords.push(word);
-    room.turnIndex = room.turnIndex === 0 ? 1 : 0; // flip turn
+    room.turnIndex = room.turnIndex === 0 ? 1 : 0;
     const nextPlayer = room.players[room.turnIndex];
+
     io.to(roomId).emit('move_made', {
       word: room.currentWord,
       usedWords: room.usedWords,
-      nextTurnPlayerName: nextPlayer.name,
-      nextTurnSocketId: nextPlayer.id
+      nextTurnPlayerId: nextPlayer.playerId
     });
   });
 
   socket.on('disconnect', () => {
-  console.log(`SOCKET DISCONNECTED: ${socket.id}`);
-  for (const roomId in rooms) {
-    const room = rooms[roomId];
-    const idx = room.players.findIndex(p => p.id === socket.id);
-    if (idx !== -1) {
-      const leavingName = room.players[idx].name;
-      console.log(`PLAYER LEFT: "${leavingName}" from room="${roomId}" — starting grace period`);
-      io.to(roomId).emit('player_left', { name: leavingName });
-      // Give a 10s grace period instead of deleting immediately —
-      // handles brief network blips / Render free-tier hiccups
-      setTimeout(() => {
-        if (rooms[roomId] && rooms[roomId].players.some(p => p.id === socket.id)) {
-          delete rooms[roomId];
-          console.log(`Room "${roomId}" deleted after grace period`);
-        }
-      }, 70000);
-      break;
+    console.log(`SOCKET DISCONNECTED: ${socket.id}`);
+    for (const roomId in rooms) {
+      const room = rooms[roomId];
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (player) {
+        player.connected = false;
+        io.to(roomId).emit('player_left', { name: player.name }); // soft notice, room stays alive
+
+        room.deleteTimeout = setTimeout(() => {
+          const stillGone = room.players.find(p => p.playerId === player.playerId && !p.connected);
+          if (stillGone) {
+            io.to(roomId).emit('room_closed', { reason: `${player.name} did not reconnect` });
+            delete rooms[roomId];
+            console.log(`Room "${roomId}" deleted — "${player.name}" never reconnected`);
+          }
+        }, 30000); // 30s grace period is plenty now that reconnects actually work
+        break;
+      }
     }
-  }
-});
+  });
 });
 
 const PORT = process.env.PORT || 3000;
