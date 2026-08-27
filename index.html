@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WORD MORPH</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <div class="container" id="app-container">
+    
+    <!-- 1. DASHBOARD SCREEN -->
+    <div id="dash-screen" class="screen active">
+      <div class="title-logo">WORD MORPH</div>
+      <div class="subtitle">Swap a letter. Keep it real. Outsmart your opponent.</div>
+
+      <button class="menu-btn btn-maya" onclick="startMayaMode()">
+        <span>Play with Maya</span>
+        <span>😏</span>
+      </button>
+
+      <button class="menu-btn btn-friends" onclick="showFriendsSetup()">
+        <span>Play with Friends (Local)</span>
+        <span>👥</span>
+      </button>
+
+      <button class="menu-btn btn-online" onclick="showOnlineSetup()">
+        <span>Play Online</span>
+        <span>🌐</span>
+      </button>
+    </div>
+
+    <!-- 2. LOCAL FRIENDS SETUP SCREEN -->
+    <div id="friends-setup-screen" class="screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="showDashboard()">← Back</button>
+        <h2>Local Match Setup</h2>
+      </div>
+
+      <div class="setup-form">
+        <div class="form-group">
+          <label>Player 1 Name</label>
+          <input type="text" id="p1-name-input" value="Player 1" />
+        </div>
+        <div class="form-group">
+          <label>Player 2 Name</label>
+          <input type="text" id="p2-name-input" value="Player 2" />
+        </div>
+        <div class="form-group">
+          <label>Turn Timer</label>
+          <select id="timer-select">
+            <option value="10">10 Seconds</option>
+            <option value="15" selected>15 Seconds</option>
+            <option value="30">30 Seconds</option>
+            <option value="0">Unlimited Time</option>
+          </select>
+        </div>
+        <button class="btn-submit" onclick="startFriendsMode()">Start Game 🚀</button>
+      </div>
+    </div>
+
+    <!-- 3. CREATE ONLINE ROOM SCREEN -->
+    <div id="online-setup-screen" class="screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="showDashboard()">← Back</button>
+        <h2>Play Online</h2>
+      </div>
+
+      <div class="setup-form">
+        <div class="form-group">
+          <label>Your Name</label>
+          <input type="text" id="online-name-input" placeholder="Enter your name" value="Host" />
+        </div>
+        
+        <button class="btn-submit" onclick="createOnlineRoom()">Create Room Link 🔗</button>
+        <div id="invite-link-display" style="margin-top: 10px; word-break: break-all; color: var(--secondary); font-weight: 700; text-align: center;"></div>
+      </div>
+    </div>
+
+    <!-- 4. JOIN VIA INVITE LINK SCREEN -->
+    <div id="join-invite-screen" class="screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="showDashboard()">← Cancel</button>
+        <h2>Game Invite</h2>
+      </div>
+
+      <div class="maya-card" style="margin-top: 10px;">
+        <div class="maya-avatar">🎮</div>
+        <div>
+          <strong style="color: var(--secondary); font-size: 0.85rem; display: block;">YOU ARE INVITED!</strong>
+          <div class="maya-dialogue" id="invite-room-text">Joining Room...</div>
+        </div>
+      </div>
+
+      <div class="setup-form">
+        <div class="form-group">
+          <label>Enter Your Name</label>
+          <input type="text" id="guest-name-input" placeholder="e.g. Player 2" value="Feyi" />
+        </div>
+
+        <button class="btn-submit" onclick="acceptAndJoinGame()">Accept & Join Game ⚔️</button>
+      </div>
+    </div>
+
+    <!-- 5. GAMEPLAY SCREEN -->
+    <div id="game-screen" class="screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="showDashboard()">← Quit</button>
+        <div class="hud">
+          <button class="action-btn" onclick="restartCurrentGame()" title="Play Again">🔄 Reset</button>
+          <div class="timer-box" id="timer-display">⏳ <span id="timer-val">15</span>s</div>
+        </div>
+      </div>
+
+      <div class="maya-card" id="turn-card">
+        <div class="maya-avatar" id="player-avatar">😏</div>
+        <div>
+          <strong id="player-label" style="color: var(--primary); font-size: 0.85rem; display: block; margin-bottom: 2px;">MAYA</strong>
+          <div class="maya-dialogue" id="player-speech">"Let's see if you can handle four simple letters."</div>
+        </div>
+      </div>
+
+      <div class="history-trail" id="word-history"></div>
+
+      <div class="board">
+        <span id="turn-indicator" style="font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Your Move</span>
+        <div class="word-display" id="word-boxes">
+          <input type="text" class="letter-box" maxlength="1" autocomplete="off" />
+          <input type="text" class="letter-box" maxlength="1" autocomplete="off" />
+          <input type="text" class="letter-box" maxlength="1" autocomplete="off" />
+          <input type="text" class="letter-box" maxlength="1" autocomplete="off" />
+        </div>
+      </div>
+
+      <button class="btn-submit" onclick="submitMove()">Submit Word</button>
+      <div class="status-msg" id="status-msg"></div>
+    </div>
+
+  </div> <!-- END OF CONTAINER -->
+
+  <script src="js/dictionary.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

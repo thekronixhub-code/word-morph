@@ -1,0 +1,359 @@
+:root {
+  --bg-gradient: radial-gradient(circle at 50% 10%, #1a1c2e 0%, #0d0e15 100%);
+  --card-bg: rgba(26, 29, 45, 0.75);
+  --card-border: rgba(255, 255, 255, 0.08);
+  
+  --primary: #FF3B70;
+  --primary-glow: rgba(255, 59, 112, 0.4);
+  --secondary: #00F5B4;
+  --secondary-glow: rgba(0, 245, 180, 0.4);
+  --accent: #FFC837;
+  --danger: #FF4757;
+  --danger-glow: rgba(255, 71, 87, 0.4);
+
+  --text: #F8FAFC;
+  --text-dim: #94A3B8;
+  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-gradient);
+  color: var(--text);
+  font-family: var(--font-main);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.container {
+  width: 100%;
+  max-width: 480px;
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  padding: 32px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 59, 112, 0.08);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.container.fullscreen-mode {
+  max-width: 920px;
+  width: 95vw;
+}
+
+.screen { display: none; }
+.screen.active { 
+  display: block; 
+  animation: fadeIn 0.3s ease-in-out; 
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* DASHBOARD & BUTTONS */
+.title-logo {
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  margin-bottom: 32px;
+}
+
+.menu-btn {
+  width: 100%;
+  padding: 18px 24px;
+  margin-bottom: 16px;
+  border: none;
+  border-radius: 16px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-maya {
+  background: linear-gradient(135deg, #FF3B70 0%, #E6004C 100%);
+  color: white;
+  box-shadow: 0 10px 25px var(--primary-glow);
+}
+
+.btn-friends {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border: 1px solid var(--card-border);
+}
+
+.menu-btn:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* GAME HEADER & HUD */
+/* GAME HEADER & HUD FIXES */
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px; /* Adds space beneath the header bar */
+}
+
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Adds horizontal breathing room between Reset and Timer */
+}
+
+.action-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--card-border);
+  color: var(--text-dim);
+  padding: 10px 16px; /* Comfortable padding */
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.timer-box {
+  background: rgba(255, 200, 55, 0.1);
+  border: 1px solid rgba(255, 200, 55, 0.3);
+  padding: 10px 16px; /* Matches action-btn height */
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--accent);
+  box-shadow: 0 0 15px rgba(255, 200, 55, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* INTERACTIVE MAYA CARD */
+.maya-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.maya-avatar {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #2A2D42, #1C1E2D);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  border: 2px solid var(--primary);
+  box-shadow: 0 0 20px var(--primary-glow);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.maya-card:hover .maya-avatar {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.maya-dialogue {
+  font-size: 0.92rem;
+  color: var(--text);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* WORD INPUT TILES */
+.board {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.word-display {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.letter-box {
+  width: 64px;
+  height: 74px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--card-border);
+  border-radius: 16px;
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--text);
+  text-transform: uppercase;
+  text-align: center;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.letter-box:focus {
+  border-color: var(--secondary);
+  background: rgba(0, 245, 180, 0.08);
+  box-shadow: 0 0 20px var(--secondary-glow);
+  transform: translateY(-2px);
+}
+
+/* INPUT ANIMATIONS */
+.shake {
+  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 20px var(--danger-glow) !important;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* SUBMIT BUTTON */
+.btn-submit {
+  width: 100%;
+  padding: 18px;
+  background: linear-gradient(135deg, var(--secondary), #00C896);
+  color: #05261E;
+  border: none;
+  border-radius: 16px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: all 0.25s;
+  box-shadow: 0 10px 25px var(--secondary-glow);
+}
+
+.btn-submit:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: 0 14px 30px var(--secondary-glow);
+}
+
+/* WORD HISTORY TRAIL */
+.history-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+}
+
+.hist-chip {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+}
+
+.hist-chip.hist-current {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 0 12px var(--primary-glow);
+}
+
+/* FRIENDS SETUP FORM */
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px; /* Adds generous vertical breathing room between fields */
+  margin-top: 30px;
+  margin-bottom: 10px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Space between the label and the input box */
+  text-align: left;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+
+.form-group input, 
+.form-group select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--card-border);
+  border-radius: 14px;
+  padding: 16px 20px; /* Thick, comfortable padding */
+  color: var(--text);
+  font-size: 1rem;
+  font-family: var(--font-main);
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-group input:focus, 
+.form-group select:focus {
+  border-color: var(--secondary);
+  background: rgba(0, 245, 180, 0.08);
+  box-shadow: 0 0 15px var(--secondary-glow);
+}
+
+/* Ensure the dropdown options don't become invisible on white backgrounds */
+.form-group select option {
+  background: #1C1E2D; 
+  color: var(--text);
+}
+
+/* Extra space above the start button */
+.setup-form .btn-submit {
+  margin-top: 16px;
+}
