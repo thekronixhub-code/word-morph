@@ -138,9 +138,21 @@
       <div class="status-msg" id="status-msg"></div>
     </div>
 
-  </div> <!-- END OF CONTAINER -->
+ </div> <!-- END OF CONTAINER -->
 
+  <!-- 1. Define backend server URL first -->
+  <script>
+    window.SOCKET_SERVER_URL = "https://word-morph-backend.onrender.com";
+  </script>
+
+  <!-- 2. Load Socket.io library from Render -->
+  <script src="https://word-morph-backend.onrender.com/socket.io/socket.io.js"></script>
+
+  <!-- 3. Load your local game scripts -->
   <script src="js/dictionary.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
   <script src="js/game.js"></script>
 </body>
 </html>
