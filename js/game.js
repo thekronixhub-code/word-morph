@@ -85,12 +85,16 @@ function acceptAndJoinGame() {
   lockBoard(true);
 }
 
-// ─── Socket.IO Connection & Events ──────────────────────────────────────────
-function connectToSocket(roomId, name) {
-  // Use env-injected server URL if available, otherwise same origin
-  const serverUrl = window.SOCKET_SERVER_URL || window.location.origin;
-  socket = io(serverUrl);
+// ─── Socket.IO Connection & Online Events ────────────────────────────────────
+let mySocketId = null;
+let myTurn = false;
 
+function connectToSocket(roomId, name) {
+  const SERVER_URL = window.SOCKET_SERVER_URL || "http://localhost:3000";
+
+  socket = io(SERVER_URL);
+
+  // Capture current user's socket ID on connection
   socket.on('connect', () => {
     mySocketId = socket.id;
     socket.emit('join_room', { roomId, playerName: name });
@@ -98,52 +102,56 @@ function connectToSocket(roomId, name) {
 
   socket.on('room_update', (room) => {
     if (room.players.length === 1) {
-      document.getElementById('status-msg').innerText = "⏳ Waiting for opponent…";
+      document.getElementById('status-msg').innerText = "Waiting for an opponent to join...";
     }
   });
 
-  socket.on('game_start', ({ starter, starterSocketId, word, players }) => {
+  socket.on('game_start', ({ starterSocketId, word, players }) => {
     gameMode = "online";
-    currentWord = word;
-    usedWords = new Set([word]);
+    switchScreen('game-screen');
+    document.getElementById('app-container').classList.add('fullscreen-mode');
 
-    // Figure out my name and opponent name
+    // Identify self vs opponent
     const me = players.find(p => p.id === mySocketId);
     const opp = players.find(p => p.id !== mySocketId);
-    player1Name = me  ? me.name  : "You";
+    player1Name = me ? me.name : "You";
     player2Name = opp ? opp.name : "Opponent";
 
-    // Is it my turn first?
+    // Turn control
     myTurn = (starterSocketId === mySocketId);
+    activePlayer = myTurn ? "p1" : "p2";
 
+    currentWord = word;
+    usedWords = new Set([word]);
+    
     document.getElementById('status-msg').innerText = "";
-    updateOnlineTurnDisplay();
+    updateTurnDisplay();
     updateBoard();
     renderHistory();
     resetTimer();
   });
 
-  socket.on('move_made', ({ word, usedWords: newUsed, nextTurnPlayerName, nextTurnSocketId }) => {
+  socket.on('move_made', ({ word, usedWords: newUsed, nextTurnSocketId }) => {
     currentWord = word;
     usedWords = new Set(newUsed);
+    
     myTurn = (nextTurnSocketId === mySocketId);
+    activePlayer = myTurn ? "p1" : "p2";
 
     renderHistory();
     updateBoard();
-    updateOnlineTurnDisplay();
+    updateTurnDisplay();
     document.getElementById('status-msg').innerText = "";
     resetTimer();
   });
 
   socket.on('player_left', ({ name }) => {
     clearInterval(timerInterval);
-    document.getElementById('status-msg').innerText = `${name} disconnected. Game over.`;
-    lockBoard(true);
+    document.getElementById('status-msg').innerText = `${name || 'Opponent'} disconnected. Game over.`;
   });
 
   socket.on('connect_error', () => {
-    document.getElementById('status-msg').innerText =
-      "❌ Can't reach server. Make sure the server is running.";
+    document.getElementById('status-msg').innerText = "❌ Can't reach server. Reconnecting...";
   });
 }
 
