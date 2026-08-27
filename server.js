@@ -75,20 +75,26 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`SOCKET DISCONNECTED: ${socket.id}`);
-    // Notify rooms this player was in
-    for (const roomId in rooms) {
-      const room = rooms[roomId];
-      const idx = room.players.findIndex(p => p.id === socket.id);
-      if (idx !== -1) {
-        const leavingName = room.players[idx].name;
-        console.log(`PLAYER LEFT: "${leavingName}" from room="${roomId}" — deleting room`);
-        io.to(roomId).emit('player_left', { name: leavingName });
-        delete rooms[roomId]; // Clean up room on disconnect
-        break;
-      }
+  console.log(`SOCKET DISCONNECTED: ${socket.id}`);
+  for (const roomId in rooms) {
+    const room = rooms[roomId];
+    const idx = room.players.findIndex(p => p.id === socket.id);
+    if (idx !== -1) {
+      const leavingName = room.players[idx].name;
+      console.log(`PLAYER LEFT: "${leavingName}" from room="${roomId}" — starting grace period`);
+      io.to(roomId).emit('player_left', { name: leavingName });
+      // Give a 10s grace period instead of deleting immediately —
+      // handles brief network blips / Render free-tier hiccups
+      setTimeout(() => {
+        if (rooms[roomId] && rooms[roomId].players.some(p => p.id === socket.id)) {
+          delete rooms[roomId];
+          console.log(`Room "${roomId}" deleted after grace period`);
+        }
+      }, 10000);
+      break;
     }
-  });
+  }
+});
 });
 
 const PORT = process.env.PORT || 3000;
