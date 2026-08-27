@@ -10,7 +10,16 @@ let usedWords = new Set();
 
 let player1Name = "Player 1";
 let player2Name = "Player 2";
-
+// ─── Persistent player identity (survives reconnects/socket.id changes) ──────
+function getOrCreatePlayerId() {
+  let id = localStorage.getItem('wordMorphPlayerId');
+  if (!id) {
+    id = 'p_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    localStorage.setItem('wordMorphPlayerId', id);
+  }
+  return id;
+}
+const myPlayerId = getOrCreatePlayerId();
 // ─── Online State ─────────────────────────────────────────────────────────────
 let socket = null;
 let currentRoomId = null;
@@ -99,38 +108,30 @@ function acceptAndJoinGame() {
 
 function connectToSocket(roomId, name) {
   const SERVER_URL = window.SOCKET_SERVER_URL || "http://localhost:3000";
-
   socket = io(SERVER_URL);
 
-  // Capture current user's socket ID on connection
   socket.on('connect', () => {
-    mySocketId = socket.id;
-    socket.emit('join_room', { roomId, playerName: name });
+    socket.emit('join_room', { roomId, playerName: name, playerId: myPlayerId });
   });
 
   socket.on('room_update', (room) => {
-    if (room.players.length === 1) {
-      // Don't overwrite the invite link message on the host side while still waiting
-      const el = document.getElementById('status-msg');
-      if (el && !el.innerHTML.includes('Share this link')) {
-        el.innerText = "Waiting for an opponent to join...";
-      }
+    const el = document.getElementById('status-msg');
+    if (room.players.length === 1 && el && !el.innerHTML.includes('Share this link')) {
+      el.innerText = "Waiting for an opponent to join...";
     }
   });
 
-  socket.on('game_start', ({ starterSocketId, word, players }) => {
+  socket.on('game_start', ({ starterPlayerId, word, players }) => {
     gameMode = "online";
     switchScreen('game-screen');
     document.getElementById('app-container').classList.add('fullscreen-mode');
 
-    // Identify self vs opponent
-    const me = players.find(p => p.id === mySocketId);
-    const opp = players.find(p => p.id !== mySocketId);
+    const me = players.find(p => p.playerId === myPlayerId);
+    const opp = players.find(p => p.playerId !== myPlayerId);
     player1Name = me ? me.name : "You";
     player2Name = opp ? opp.name : "Opponent";
 
-    // Turn control
-    myTurn = (starterSocketId === mySocketId);
+    myTurn = (starterPlayerId === myPlayerId);
     activePlayer = myTurn ? "p1" : "p2";
 
     currentWord = word;
@@ -143,11 +144,10 @@ function connectToSocket(roomId, name) {
     resetTimer();
   });
 
-  socket.on('move_made', ({ word, usedWords: newUsed, nextTurnSocketId }) => {
+  socket.on('move_made', ({ word, usedWords: newUsed, nextTurnPlayerId }) => {
     currentWord = word;
     usedWords = new Set(newUsed);
-
-    myTurn = (nextTurnSocketId === mySocketId);
+    myTurn = (nextTurnPlayerId === myPlayerId);
     activePlayer = myTurn ? "p1" : "p2";
 
     renderHistory();
@@ -158,15 +158,20 @@ function connectToSocket(roomId, name) {
   });
 
   socket.on('player_left', ({ name }) => {
+    // Soft notice only — room stays alive during the grace period, don't end the game yet
+    document.getElementById('status-msg').innerText = `${name} lost connection... waiting for them to come back.`;
+  });
+
+  socket.on('room_closed', ({ reason }) => {
     clearInterval(timerInterval);
-    document.getElementById('status-msg').innerText = `${name || 'Opponent'} disconnected. Game over.`;
+    document.getElementById('status-msg').innerText = `Game ended: ${reason}`;
+    lockBoard(true);
   });
 
   socket.on('connect_error', () => {
     document.getElementById('status-msg').innerText = "❌ Can't reach server. Reconnecting...";
   });
 }
-
 // ─── Online HUD ──────────────────────────────────────────────────────────────
 function updateOnlineTurnDisplay() {
   const avatar  = document.getElementById('player-avatar');
