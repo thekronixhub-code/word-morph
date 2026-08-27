@@ -86,8 +86,6 @@ function acceptAndJoinGame() {
 }
 
 // ─── Socket.IO Connection & Online Events ────────────────────────────────────
-let mySocketId = null;
-let myTurn = false;
 
 function connectToSocket(roomId, name) {
   const SERVER_URL = window.SOCKET_SERVER_URL || "http://localhost:3000";
