@@ -59,28 +59,38 @@ function switchScreen(screenId) {
 function createOnlineRoom() {
   const name = document.getElementById('online-name-input').value.trim() || "Host";
   currentRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+  gameMode = "online"; // set this NOW so Reset/etc. don't fall back to Maya mode
 
   const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
-  document.getElementById('invite-link-display').innerHTML =
-    `Share this link:<br><strong>${inviteUrl}</strong>`;
 
   connectToSocket(currentRoomId, name);
 
-  // Show waiting message in status
   switchScreen('game-screen');
   document.getElementById('app-container').classList.add('fullscreen-mode');
-  document.getElementById('status-msg').innerText = "⏳ Waiting for your opponent to join…";
-  document.getElementById('player-speech').innerText = "Share the link above and wait!";
+
+  // Reset the leftover "MAYA" placeholder visuals
+  document.getElementById('player-avatar').innerText = "⏳";
+  document.getElementById('player-label').innerText = "WAITING";
+  document.getElementById('player-speech').innerText = "Sit tight, your opponent is joining...";
+
+  // Show the invite link where it'll actually stay visible (this screen doesn't get swapped away)
+  document.getElementById('status-msg').innerHTML =
+    `⏳ Share this link with your friend:<br><strong style="word-break:break-all;">${inviteUrl}</strong>`;
+
   lockBoard(true);
 }
 
 // ─── Online: Accept & Join ───────────────────────────────────────────────────
 function acceptAndJoinGame() {
   const guestName = document.getElementById('guest-name-input').value.trim() || "Guest";
+  gameMode = "online"; // same fix here
+
   connectToSocket(currentRoomId, guestName);
 
   switchScreen('game-screen');
   document.getElementById('app-container').classList.add('fullscreen-mode');
+  document.getElementById('player-avatar').innerText = "⏳";
+  document.getElementById('player-label').innerText = "CONNECTING";
   document.getElementById('status-msg').innerText = "⏳ Connecting to room…";
   lockBoard(true);
 }
@@ -100,7 +110,11 @@ function connectToSocket(roomId, name) {
 
   socket.on('room_update', (room) => {
     if (room.players.length === 1) {
-      document.getElementById('status-msg').innerText = "Waiting for an opponent to join...";
+      // Don't overwrite the invite link message on the host side while still waiting
+      const el = document.getElementById('status-msg');
+      if (el && !el.innerHTML.includes('Share this link')) {
+        el.innerText = "Waiting for an opponent to join...";
+      }
     }
   });
 
@@ -121,7 +135,7 @@ function connectToSocket(roomId, name) {
 
     currentWord = word;
     usedWords = new Set([word]);
-    
+
     document.getElementById('status-msg').innerText = "";
     updateTurnDisplay();
     updateBoard();
@@ -132,7 +146,7 @@ function connectToSocket(roomId, name) {
   socket.on('move_made', ({ word, usedWords: newUsed, nextTurnSocketId }) => {
     currentWord = word;
     usedWords = new Set(newUsed);
-    
+
     myTurn = (nextTurnSocketId === mySocketId);
     activePlayer = myTurn ? "p1" : "p2";
 
