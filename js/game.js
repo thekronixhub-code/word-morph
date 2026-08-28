@@ -64,6 +64,21 @@ function switchScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
 }
+function renderScoreboard(scores) {
+  const el = document.getElementById('scoreboard');
+  if (!el || gameMode !== "online" || !scores || scores.length < 2) {
+    if (el) el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'flex';
+  const me = scores.find(s => s.playerId === myPlayerId);
+  const opp = scores.find(s => s.playerId !== myPlayerId);
+  el.innerHTML = `
+    <div class="score-chip"><span class="name">${me.name} (You)</span><span class="val">${me.score}</span></div>
+    <div class="vs">VS</div>
+    <div class="score-chip"><span class="name">${opp.name}</span><span class="val">${opp.score}</span></div>
+  `;
+}
 
 
 
@@ -145,8 +160,10 @@ function connectToSocket(roomId, name, startWord) {
       el.innerText = "Waiting for an opponent to join...";
     }
   });
-
-  socket.on('game_start', ({ starterPlayerId, word, players }) => {
+  
+//________File Replaced Here____________
+  
+   socket.on('game_start', ({ starterPlayerId, word, players, scores }) => {
     gameMode = "online";
     switchScreen('game-screen');
     document.getElementById('app-container').classList.add('fullscreen-mode');
@@ -166,6 +183,7 @@ function connectToSocket(roomId, name, startWord) {
     updateTurnDisplay();
     updateBoard();
     renderHistory();
+    renderScoreboard(scores);
     resetTimer();
   });
 
@@ -196,11 +214,20 @@ function connectToSocket(roomId, name, startWord) {
     document.getElementById('status-msg').innerText = "❌ Can't reach server. Reconnecting...";
   });
 
-  socket.on('game_over', ({ winnerName, loserName }) => {
+   socket.on('round_over', ({ winnerPlayerId, winnerName, loserName, scores }) => {
     clearInterval(timerInterval);
     lockBoard(true);
-    document.getElementById('status-msg').innerText =
-      `⏰ ${loserName} ran out of time! ${winnerName} wins! 🎉`;
+    renderScoreboard(scores);
+
+    const iWon = winnerPlayerId === myPlayerId;
+    const msg = iWon
+      ? `🎉 ${loserName} was too slow! You win this round!`
+      : `⏳ Too slow! You lose. ${winnerName} won this round!`;
+
+    document.getElementById('status-msg').innerHTML = `
+      ${msg}
+      <br><button class="btn-submit" style="margin-top:12px;" onclick="retryRound()">Play Again 🔁</button>
+    `;
   });
 }
 
@@ -443,6 +470,13 @@ function submitMove() {
     updateBoard();
     resetTimer();
   }
+}
+
+// ─── Retry Function ──────────────────────────────────────────────────────────────────
+
+function retryRound() {
+  document.getElementById('status-msg').innerText = "Waiting for round to restart...";
+  socket.emit('retry_round', { roomId: currentRoomId });
 }
 
 // ─── Maya AI ──────────────────────────────────────────────────────────────────
