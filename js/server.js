@@ -2,18 +2,16 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
-
 app.use(express.static(path.join(__dirname, '/')));
-
 const rooms = {};
 
 io.on('connection', (socket) => {
+  console.log(`SOCKET CONNECTED: ${socket.id}`);
 
-  socket.on('join_room', ({ roomId, playerName }) => {
+  socket.on('join_room', ({ roomId, playerName, playerId }) => {
     socket.join(roomId);
 
     if (!rooms[roomId]) {
@@ -21,15 +19,66 @@ io.on('connection', (socket) => {
         players: [],
         currentWord: "CARE",
         usedWords: ["CARE"],
-        turnIndex: 0  // index into players[] whose turn it is
+        turnIndex: 0,
+        deleteTimeout: null
       };
     }
+    const room = rooms[roomId];
 
-      socket.on('time_up', ({ roomId }) => {
+    if (room.deleteTimeout) {
+      clearTimeout(room.deleteTimeout);
+      room.deleteTimeout = null;
+    }
+
+    let player = room.players.find(p => p.playerId === playerId);
+
+    if (player) {
+      console.log(`RECONNECT: "${playerName}" (${playerId}) new socket=${socket.id}`);
+      player.socketId = socket.id;
+      player.connected = true;
+    } else if (room.players.length < 2) {
+      player = { playerId, socketId: socket.id, name: playerName, connected: true };
+      room.players.push(player);
+      console.log(`NEW JOIN: "${playerName}" (${playerId}) socket=${socket.id}`);
+    }
+
+    io.to(roomId).emit('room_update', {
+      players: room.players.map(p => ({ playerId: p.playerId, name: p.name })),
+      currentWord: room.currentWord,
+      usedWords: room.usedWords
+    });
+
+    if (room.players.length === 2) {
+      io.to(roomId).emit('game_start', {
+        starterPlayerId: room.players[0].playerId,
+        word: room.currentWord,
+        players: room.players.map(p => ({ playerId: p.playerId, name: p.name }))
+      });
+    }
+  });
+
+  socket.on('make_move', ({ roomId, word }) => {
     const room = rooms[roomId];
     if (!room) return;
     const currentPlayer = room.players[room.turnIndex];
-    // Only accept a timeout claim from the player whose turn it actually is
+    if (!currentPlayer || currentPlayer.socketId !== socket.id) return;
+
+    room.currentWord = word;
+    room.usedWords.push(word);
+    room.turnIndex = room.turnIndex === 0 ? 1 : 0;
+    const nextPlayer = room.players[room.turnIndex];
+
+    io.to(roomId).emit('move_made', {
+      word: room.currentWord,
+      usedWords: room.usedWords,
+      nextTurnPlayerId: nextPlayer.playerId
+    });
+  });
+
+  socket.on('time_up', ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    const currentPlayer = room.players[room.turnIndex];
     if (!currentPlayer || currentPlayer.socketId !== socket.id) return;
 
     const winner = room.players[room.turnIndex === 0 ? 1 : 0];
@@ -41,67 +90,26 @@ io.on('connection', (socket) => {
     });
 
     if (room.deleteTimeout) clearTimeout(room.deleteTimeout);
-    delete rooms[roomId]; // match's over, clean up
-  });
-
-    const room = rooms[roomId];
-
-    // Prevent duplicate joins (e.g. on reconnect)
-    const alreadyIn = room.players.find(p => p.id === socket.id);
-    if (!alreadyIn && room.players.length < 2) {
-      room.players.push({ id: socket.id, name: playerName });
-    }
-
-    // Tell everyone in the room the current room state
-    io.to(roomId).emit('room_update', {
-      players: room.players,
-      currentWord: room.currentWord,
-      usedWords: room.usedWords
-    });
-
-    // Start the game once both players are in
-    if (room.players.length === 2) {
-      io.to(roomId).emit('game_start', {
-        starter: room.players[0].name,          // P1 always goes first
-        starterSocketId: room.players[0].id,
-        word: room.currentWord,
-        players: room.players
-      });
-    }
-  });
-
-  // A player submits a valid move
-  socket.on('make_move', ({ roomId, word }) => {
-    const room = rooms[roomId];
-    if (!room) return;
-
-    // Validate it's actually this socket's turn
-    const currentPlayer = room.players[room.turnIndex];
-    if (!currentPlayer || currentPlayer.id !== socket.id) return;
-
-    room.currentWord = word;
-    room.usedWords.push(word);
-    room.turnIndex = room.turnIndex === 0 ? 1 : 0; // flip turn
-
-    const nextPlayer = room.players[room.turnIndex];
-
-    io.to(roomId).emit('move_made', {
-      word: room.currentWord,
-      usedWords: room.usedWords,
-      nextTurnPlayerName: nextPlayer.name,
-      nextTurnSocketId: nextPlayer.id
-    });
+    delete rooms[roomId];
   });
 
   socket.on('disconnect', () => {
-    // Notify rooms this player was in
+    console.log(`SOCKET DISCONNECTED: ${socket.id}`);
     for (const roomId in rooms) {
       const room = rooms[roomId];
-      const idx = room.players.findIndex(p => p.id === socket.id);
-      if (idx !== -1) {
-        const leavingName = room.players[idx].name;
-        io.to(roomId).emit('player_left', { name: leavingName });
-        delete rooms[roomId]; // Clean up room on disconnect
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (player) {
+        player.connected = false;
+        io.to(roomId).emit('player_left', { name: player.name });
+
+        room.deleteTimeout = setTimeout(() => {
+          const stillGone = room.players.find(p => p.playerId === player.playerId && !p.connected);
+          if (stillGone) {
+            io.to(roomId).emit('room_closed', { reason: `${player.name} did not reconnect` });
+            delete rooms[roomId];
+            console.log(`Room "${roomId}" deleted — "${player.name}" never reconnected`);
+          }
+        }, 30000);
         break;
       }
     }
