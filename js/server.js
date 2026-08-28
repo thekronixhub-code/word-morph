@@ -11,18 +11,20 @@ const rooms = {};
 io.on('connection', (socket) => {
   console.log(`SOCKET CONNECTED: ${socket.id}`);
 
-  socket.on('join_room', ({ roomId, playerName, playerId }) => {
-    socket.join(roomId);
-
-    if (!rooms[roomId]) {
-      rooms[roomId] = {
-        players: [],
-        currentWord: "CARE",
-        usedWords: ["CARE"],
-        turnIndex: 0,
-        deleteTimeout: null
-      };
-    }
+socket.on('join_room', ({ roomId, playerName, playerId, startWord }) => {
+  socket.join(roomId);
+  if (!rooms[roomId]) {
+    const validStart = (typeof startWord === 'string' && /^[A-Z]{4}$/.test(startWord))
+      ? startWord
+      : "CARE";
+    rooms[roomId] = {
+      players: [],
+      currentWord: validStart,
+      usedWords: [validStart],
+      turnIndex: 0,
+      deleteTimeout: null
+    };
+  }
     const room = rooms[roomId];
 
     if (room.deleteTimeout) {
