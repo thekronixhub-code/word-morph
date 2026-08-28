@@ -11,15 +11,19 @@ const rooms = {};
 io.on('connection', (socket) => {
   console.log(`SOCKET CONNECTED: ${socket.id}`);
 
-  socket.on('join_room', ({ roomId, playerName, playerId }) => {
+  socket.on('join_room', ({ roomId, playerName, playerId, startWord }) => {
     socket.join(roomId);
 
     if (!rooms[roomId]) {
+    const validStart = (typeof startWord === 'string' && /^[A-Z]{4}$/.test(startWord))
+      ? startWord
+      : "CARE";
       rooms[roomId] = {
         players: [],
-        currentWord: "CARE",
-        usedWords: ["CARE"],
+        currentWord: validStart,
+        usedWords: [validStart],
         turnIndex: 0,
+        scores: {},
         deleteTimeout: null
       };
     }
@@ -44,17 +48,22 @@ io.on('connection', (socket) => {
       console.log(`NEW JOIN: "${playerName}" (${playerId}) socket=${socket.id}`);
     }
 
+    if (room.scores[playerId] === undefined) room.scores[playerId] = 0;
+
     io.to(roomId).emit('room_update', {
       players: room.players.map(p => ({ playerId: p.playerId, name: p.name })),
       currentWord: room.currentWord,
       usedWords: room.usedWords
     });
 
-    if (room.players.length === 2) {
+        if (room.players.length === 2) {
       io.to(roomId).emit('game_start', {
         starterPlayerId: room.players[0].playerId,
         word: room.currentWord,
-        players: room.players.map(p => ({ playerId: p.playerId, name: p.name }))
+        players: room.players.map(p => ({ playerId: p.playerId, name: p.name })),
+        scores: room.players.map(p => ({
+          playerId: p.playerId, name: p.name, score: room.scores[p.playerId] || 0
+        }))
       });
     }
   });
@@ -77,6 +86,47 @@ io.on('connection', (socket) => {
       word: room.currentWord,
       usedWords: room.usedWords,
       nextTurnPlayerId: nextPlayer.playerId
+    });
+  });
+
+    socket.on('time_up', ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    const currentPlayer = room.players[room.turnIndex];
+    if (!currentPlayer || currentPlayer.socketId !== socket.id) return;
+
+    const winnerIndex = room.turnIndex === 0 ? 1 : 0;
+    const winner = room.players[winnerIndex];
+
+    room.scores[winner.playerId] = (room.scores[winner.playerId] || 0) + 1;
+
+    console.log(`ROUND OVER: room="${roomId}" — ${currentPlayer.name} too slow, ${winner.name} wins round`);
+
+    io.to(roomId).emit('round_over', {
+      winnerPlayerId: winner.playerId,
+      winnerName: winner.name,
+      loserName: currentPlayer.name,
+      scores: room.players.map(p => ({
+        playerId: p.playerId, name: p.name, score: room.scores[p.playerId] || 0
+      }))
+    });
+  });
+
+  socket.on('retry_round', ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room || room.players.length < 2) return;
+
+    room.currentWord = "CARE";
+    room.usedWords = ["CARE"];
+    room.turnIndex = room.turnIndex === 0 ? 1 : 0;
+
+    io.to(roomId).emit('game_start', {
+      starterPlayerId: room.players[room.turnIndex].playerId,
+      word: room.currentWord,
+      players: room.players.map(p => ({ playerId: p.playerId, name: p.name })),
+      scores: room.players.map(p => ({
+        playerId: p.playerId, name: p.name, score: room.scores[p.playerId] || 0
+      }))
     });
   });
 
