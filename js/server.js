@@ -25,6 +25,25 @@ io.on('connection', (socket) => {
       };
     }
 
+      socket.on('time_up', ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    const currentPlayer = room.players[room.turnIndex];
+    // Only accept a timeout claim from the player whose turn it actually is
+    if (!currentPlayer || currentPlayer.socketId !== socket.id) return;
+
+    const winner = room.players[room.turnIndex === 0 ? 1 : 0];
+    console.log(`TIME UP: room="${roomId}" — ${currentPlayer.name} ran out of time, ${winner.name} wins`);
+
+    io.to(roomId).emit('game_over', {
+      winnerName: winner.name,
+      loserName: currentPlayer.name
+    });
+
+    if (room.deleteTimeout) clearTimeout(room.deleteTimeout);
+    delete rooms[roomId]; // match's over, clean up
+  });
+
     const room = rooms[roomId];
 
     // Prevent duplicate joins (e.g. on reconnect)
