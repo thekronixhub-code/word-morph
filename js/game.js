@@ -65,30 +65,9 @@ function switchScreen(screenId) {
   document.getElementById(screenId).classList.add('active');
 }
 
-// ─── Online: Create Room ─────────────────────────────────────────────────────
-function createOnlineRoom() {
-  const name = document.getElementById('online-name-input').value.trim() || "Host";
-  currentRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-  gameMode = "online";
 
-  const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
 
-  connectToSocket(currentRoomId, name);
-
-  switchScreen('game-screen');
-  document.getElementById('app-container').classList.add('fullscreen-mode');
-
-  document.getElementById('player-avatar').innerText = "⏳";
-  document.getElementById('player-label').innerText = "WAITING";
-  document.getElementById('player-speech').innerText = "Sit tight, your opponent is joining...";
-
-  document.getElementById('status-msg').innerHTML =
-    `⏳ Share this link with your friend:<br><strong style="word-break:break-all;">${inviteUrl}</strong>`;
-
-  lockBoard(true);
-}
-
-// ─── Get Random word ───────────────────────────────────────────────────
+// ─── Online : Create Room ───────────────────────────────────────────────────
 function getRandomStartWord() {
   const words = [...DICTIONARY];
   return words[Math.floor(Math.random() * words.length)];
