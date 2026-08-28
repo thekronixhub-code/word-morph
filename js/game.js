@@ -168,8 +168,15 @@ function connectToSocket(roomId, name) {
     lockBoard(true);
   });
 
-  socket.on('connect_error', () => {
+   socket.on('connect_error', () => {
     document.getElementById('status-msg').innerText = "❌ Can't reach server. Reconnecting...";
+  });
+
+  socket.on('game_over', ({ winnerName, loserName }) => {
+    clearInterval(timerInterval);
+    lockBoard(true);
+    document.getElementById('status-msg').innerText =
+      `⏰ ${loserName} ran out of time! ${winnerName} wins! 🎉`;
   });
 }
 // ─── Online HUD ──────────────────────────────────────────────────────────────
@@ -237,6 +244,8 @@ function initGame() {
   resetTimer();
 }
 
+
+
 // ─── Local Turn & HUD ────────────────────────────────────────────────────────
 function updateTurnDisplay() {
   if (gameMode === "online") { updateOnlineTurnDisplay(); return; }
@@ -298,13 +307,13 @@ function resetTimer() {
   clearInterval(timerInterval);
   const timerBox = document.getElementById('timer-display');
 
-  if (maxTimer === 0 || gameMode === "online") {
+    if (maxTimer === 0) {
     timerBox.style.display = 'none';
     return;
   }
 
   timerBox.style.display = 'block';
-  timer = maxTimer;
+  timer = (gameMode === "online") ? 15 : maxTimer;
   document.getElementById('timer-val').innerText = timer;
 
   timerInterval = setInterval(() => {
@@ -325,21 +334,17 @@ function resetTimer() {
 
 function handleTimeout() {
   const status = document.getElementById('status-msg');
-  if (gameMode === "maya") {
-    if (activePlayer === "p1") {
-      document.getElementById('player-speech').innerText = MAYA_TAUNTS.win[0];
-      status.innerText = "Time's up! Maya wins!";
-    } else {
-      document.getElementById('player-speech').innerText = MAYA_TAUNTS.lose[0];
-      status.innerText = "Maya ran out of time! You win!";
-    }
-  } else {
-    const winner = activePlayer === "p1" ? player2Name : player1Name;
-    const loser  = activePlayer === "p1" ? player1Name : player2Name;
-    status.innerText = `Time's up for ${loser}! ${winner} Wins! 🎉`;
-  }
-}
 
+  if (gameMode === "online") {
+    if (myTurn) {
+      socket.emit('time_up', { roomId: currentRoomId });
+      status.innerText = "⏳ Time's up! Waiting for result...";
+    }
+    return;
+  }
+
+  if (gameMode === "maya") {
+    
 // ─── Submit Move ─────────────────────────────────────────────────────────────
 function submitMove() {
   // Online guard: only submit on your turn
