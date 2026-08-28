@@ -394,3 +394,23 @@ body {
   color: var(--text-dim);
   font-size: 0.8rem;
 }
+
+
+/* BACK / QUIT BUTTON */
+.back-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--card-border);
+  color: var(--text-dim);
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
