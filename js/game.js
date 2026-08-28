@@ -10,6 +10,7 @@ let usedWords = new Set();
 
 let player1Name = "Player 1";
 let player2Name = "Player 2";
+
 // ─── Persistent player identity (survives reconnects/socket.id changes) ──────
 function getOrCreatePlayerId() {
   let id = localStorage.getItem('wordMorphPlayerId');
@@ -20,10 +21,10 @@ function getOrCreatePlayerId() {
   return id;
 }
 const myPlayerId = getOrCreatePlayerId();
+
 // ─── Online State ─────────────────────────────────────────────────────────────
 let socket = null;
 let currentRoomId = null;
-let mySocketId = null;      // This client's socket id
 let myTurn = false;         // Is it currently my turn?
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ function switchScreen(screenId) {
 function createOnlineRoom() {
   const name = document.getElementById('online-name-input').value.trim() || "Host";
   currentRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-  gameMode = "online"; // set this NOW so Reset/etc. don't fall back to Maya mode
+  gameMode = "online";
 
   const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
 
@@ -77,12 +78,10 @@ function createOnlineRoom() {
   switchScreen('game-screen');
   document.getElementById('app-container').classList.add('fullscreen-mode');
 
-  // Reset the leftover "MAYA" placeholder visuals
   document.getElementById('player-avatar').innerText = "⏳";
   document.getElementById('player-label').innerText = "WAITING";
   document.getElementById('player-speech').innerText = "Sit tight, your opponent is joining...";
 
-  // Show the invite link where it'll actually stay visible (this screen doesn't get swapped away)
   document.getElementById('status-msg').innerHTML =
     `⏳ Share this link with your friend:<br><strong style="word-break:break-all;">${inviteUrl}</strong>`;
 
@@ -92,7 +91,7 @@ function createOnlineRoom() {
 // ─── Online: Accept & Join ───────────────────────────────────────────────────
 function acceptAndJoinGame() {
   const guestName = document.getElementById('guest-name-input').value.trim() || "Guest";
-  gameMode = "online"; // same fix here
+  gameMode = "online";
 
   connectToSocket(currentRoomId, guestName);
 
@@ -105,7 +104,6 @@ function acceptAndJoinGame() {
 }
 
 // ─── Socket.IO Connection & Online Events ────────────────────────────────────
-
 function connectToSocket(roomId, name) {
   const SERVER_URL = window.SOCKET_SERVER_URL || "http://localhost:3000";
   socket = io(SERVER_URL);
@@ -158,7 +156,6 @@ function connectToSocket(roomId, name) {
   });
 
   socket.on('player_left', ({ name }) => {
-    // Soft notice only — room stays alive during the grace period, don't end the game yet
     document.getElementById('status-msg').innerText = `${name} lost connection... waiting for them to come back.`;
   });
 
@@ -168,7 +165,7 @@ function connectToSocket(roomId, name) {
     lockBoard(true);
   });
 
-   socket.on('connect_error', () => {
+  socket.on('connect_error', () => {
     document.getElementById('status-msg').innerText = "❌ Can't reach server. Reconnecting...";
   });
 
@@ -179,6 +176,7 @@ function connectToSocket(roomId, name) {
       `⏰ ${loserName} ran out of time! ${winnerName} wins! 🎉`;
   });
 }
+
 // ─── Online HUD ──────────────────────────────────────────────────────────────
 function updateOnlineTurnDisplay() {
   const avatar  = document.getElementById('player-avatar');
@@ -225,7 +223,7 @@ function startFriendsMode() {
 }
 
 function restartCurrentGame() {
-  if (gameMode === "online") return; // can't locally restart an online game
+  if (gameMode === "online") return;
   initGame();
 }
 
@@ -243,8 +241,6 @@ function initGame() {
   renderHistory();
   resetTimer();
 }
-
-
 
 // ─── Local Turn & HUD ────────────────────────────────────────────────────────
 function updateTurnDisplay() {
@@ -307,7 +303,7 @@ function resetTimer() {
   clearInterval(timerInterval);
   const timerBox = document.getElementById('timer-display');
 
-    if (maxTimer === 0) {
+  if (maxTimer === 0) {
     timerBox.style.display = 'none';
     return;
   }
@@ -344,12 +340,23 @@ function handleTimeout() {
   }
 
   if (gameMode === "maya") {
-    
+    if (activePlayer === "p1") {
+      document.getElementById('player-speech').innerText = MAYA_TAUNTS.win[0];
+      status.innerText = "Time's up! Maya wins!";
+    } else {
+      document.getElementById('player-speech').innerText = MAYA_TAUNTS.lose[0];
+      status.innerText = "Maya ran out of time! You win!";
+    }
+  } else {
+    const winner = activePlayer === "p1" ? player2Name : player1Name;
+    const loser  = activePlayer === "p1" ? player1Name : player2Name;
+    status.innerText = `Time's up for ${loser}! ${winner} Wins! 🎉`;
+  }
+}
+
 // ─── Submit Move ─────────────────────────────────────────────────────────────
 function submitMove() {
-  // Online guard: only submit on your turn
   if (gameMode === "online" && !myTurn) return;
-  // Maya guard
   if (gameMode === "maya" && activePlayer !== "p1") return;
 
   const inputs = document.querySelectorAll('.letter-box');
@@ -384,17 +391,14 @@ function submitMove() {
     triggerErrorState(); return;
   }
 
-  // ── Valid move ──
   document.getElementById('status-msg').innerText = "";
 
   if (gameMode === "online") {
-    // Send to server — server will broadcast back to both players
     socket.emit('make_move', { roomId: currentRoomId, word: newWord });
-    lockBoard(true); // optimistically lock until server confirms
+    lockBoard(true);
     return;
   }
 
-  // Local modes
   currentWord = newWord;
   usedWords.add(currentWord);
   turnCount++;
@@ -452,7 +456,6 @@ function playMayaTurn() {
 
 // ─── DOMContentLoaded ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Detect invite link
   const urlParams = new URLSearchParams(window.location.search);
   const roomIdFromUrl = urlParams.get('room');
 
@@ -463,7 +466,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (roomText) roomText.innerText = `You've been invited to Room #${currentRoomId}`;
   }
 
-  // Letter-box keyboard navigation
   document.querySelectorAll('.letter-box').forEach((box, index, boxes) => {
     box.addEventListener('input', (e) => {
       e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '');
