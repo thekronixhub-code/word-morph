@@ -357,3 +357,40 @@ body {
 .setup-form .btn-submit {
   margin-top: 16px;
 }
+
+/* SCOREBOARD */
+.scoreboard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  font-weight: 800;
+}
+
+.scoreboard .score-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.scoreboard .score-chip .name {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.scoreboard .score-chip .val {
+  font-size: 1.4rem;
+  color: var(--secondary);
+}
+
+.scoreboard .vs {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
