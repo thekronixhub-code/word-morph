@@ -88,6 +88,54 @@ function createOnlineRoom() {
   lockBoard(true);
 }
 
+// ─── Get Random word ───────────────────────────────────────────────────
+function getRandomStartWord() {
+  const words = [...DICTIONARY];
+  return words[Math.floor(Math.random() * words.length)];
+}
+
+function createOnlineRoom() {
+  const name = document.getElementById('online-name-input').value.trim() || "Host";
+  const errorEl = document.getElementById('online-word-error');
+  errorEl.innerText = "";
+
+  const rawWord = document.getElementById('online-word-input').value.trim().toUpperCase();
+  let startWord;
+
+  if (rawWord) {
+    if (!/^[A-Z]{4}$/.test(rawWord)) {
+      errorEl.innerText = "Word must be exactly 4 letters.";
+      return;
+    }
+    if (!DICTIONARY.has(rawWord)) {
+      errorEl.innerText = "That's not in our word list — try another.";
+      return;
+    }
+    startWord = rawWord;
+  } else {
+    startWord = getRandomStartWord();
+  }
+
+  currentRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+  gameMode = "online";
+
+  const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+
+  connectToSocket(currentRoomId, name, startWord);
+
+  switchScreen('game-screen');
+  document.getElementById('app-container').classList.add('fullscreen-mode');
+
+  document.getElementById('player-avatar').innerText = "⏳";
+  document.getElementById('player-label').innerText = "WAITING";
+  document.getElementById('player-speech').innerText = "Sit tight, your opponent is joining...";
+
+  document.getElementById('status-msg').innerHTML =
+    `⏳ Share this link with your friend:<br><strong style="word-break:break-all;">${inviteUrl}</strong>`;
+
+  lockBoard(true);
+}
+
 // ─── Online: Accept & Join ───────────────────────────────────────────────────
 function acceptAndJoinGame() {
   const guestName = document.getElementById('guest-name-input').value.trim() || "Guest";
@@ -104,12 +152,12 @@ function acceptAndJoinGame() {
 }
 
 // ─── Socket.IO Connection & Online Events ────────────────────────────────────
-function connectToSocket(roomId, name) {
+function connectToSocket(roomId, name, startWord) {
   const SERVER_URL = window.SOCKET_SERVER_URL || "http://localhost:3000";
   socket = io(SERVER_URL);
 
   socket.on('connect', () => {
-    socket.emit('join_room', { roomId, playerName: name, playerId: myPlayerId });
+    socket.emit('join_room', { roomId, playerName: name, playerId: myPlayerId, startWord });
   });
 
   socket.on('room_update', (room) => {
